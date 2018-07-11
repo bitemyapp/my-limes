@@ -30,6 +30,22 @@ pub struct ConsumerPair {
     pub consumer_secret: String,
 }
 
+pub fn config_help(config_path: &std::path::PathBuf) {
+    // let cpath: String = config_path.into_os_string().into();
+    println!("You appear not to have a limes config file!");
+    println!("You will need to create a file at the following location:");
+    println!("{}", config_path.to_string_lossy());
+    println!("You will need to follow the instructions at http://apps.twitter.com");
+    println!("And make your own app with its own consumer key and consumer secret.");
+    println!("Once you have, put the values into a toml file at the aforementioned");
+    println!("location in the following format:");
+    let toml_str = r#"
+        consumer_key = "my consumer key"
+        consumer_secret = "my consumer secret"
+    "#;
+    println!("{}", toml_str);
+}
+
 impl Config {
     pub fn load(core: &mut Core) -> Self {
 //        let consumer_key = env::var("TWOOK_CONSUMER_KEY").unwrap();
@@ -38,9 +54,15 @@ impl Config {
         let config_path = xdg_dirs
                             .place_config_file("limes.cfg")
                             .expect("Cannot create configuration directory");
-        println!("{:?}", config_path);
         let mut consumer_toml = String::new();
-        let mut f = std::fs::File::open(config_path).unwrap();
+        let mut f = match std::fs::File::open(&config_path) {
+            Ok(f) => f,
+            Err(err) => {
+                config_help(&config_path);
+                println!("The error we got trying to open the config file was: {:?}", err);
+                panic!("Limes consumer key/secret config");
+            },
+        };
         f.read_to_string(&mut consumer_toml).unwrap();
         let consumer_pair: ConsumerPair = toml::from_str(&consumer_toml).unwrap();
         let handle = core.handle();
@@ -121,73 +143,6 @@ impl Config {
         }
         else {
             Self::load(core)
-        }
-    }
-}
-
-pub fn print_tweet(tweet: &egg_mode::tweet::Tweet) {
-    if let Some(ref user) = tweet.user {
-        println!("{} (@{}) posted at {}", user.name, user.screen_name, tweet.created_at.with_timezone(&chrono::Local));
-    }
-
-    if let Some(ref screen_name) = tweet.in_reply_to_screen_name {
-        println!("--> in reply to @{}", screen_name);
-    }
-
-    if let Some(ref status) = tweet.retweeted_status {
-        if let Some(ref user) = status.user {
-            println!("Retweeted from {}:", user.name);
-        }
-        print_tweet(status);
-        return;
-    }
-    else {
-        println!("{}", tweet.text);
-    }
-
-    println!("--via {} ({})", tweet.source.name, tweet.source.url);
-
-    if let Some(ref place) = tweet.place {
-        println!("--from {}", place.full_name);
-    }
-
-    if let Some(ref status) = tweet.quoted_status {
-        println!("--Quoting the following status:");
-        print_tweet(status);
-    }
-
-    if !tweet.entities.hashtags.is_empty() {
-        println!("Hashtags contained in the tweet:");
-        for tag in &tweet.entities.hashtags {
-            println!("{}", tag.text);
-        }
-    }
-
-    if !tweet.entities.symbols.is_empty() {
-        println!("Symbols contained in the tweet:");
-        for tag in &tweet.entities.symbols {
-            println!("{}", tag.text);
-        }
-    }
-
-    if !tweet.entities.urls.is_empty() {
-        println!("URLs contained in the tweet:");
-        for url in &tweet.entities.urls {
-            println!("{}", url.expanded_url);
-        }
-    }
-
-    if !tweet.entities.user_mentions.is_empty() {
-        println!("Users mentioned in the tweet:");
-        for user in &tweet.entities.user_mentions {
-            println!("{}", user.screen_name);
-        }
-    }
-
-    if let Some(ref media) = tweet.extended_entities {
-        println!("Media attached to the tweet:");
-        for info in &media.media {
-            println!("A {:?}", info.media_type);
         }
     }
 }
