@@ -11,8 +11,10 @@ mod common;
 
 use common::futures::Stream;
 use chrono::prelude::*;
+use chrono::{NaiveDateTime, NaiveDate};
 use common::tokio_core::reactor;
 use egg_mode::cursor;
+use egg_mode::error::Error;
 use egg_mode::user;
 use egg_mode::tweet::Tweet;
 use dotenv::dotenv;
@@ -49,14 +51,30 @@ fn main() {
         .map(|r| r.response)
         .for_each(|id| { friends.insert(id); Ok(()) })).unwrap();
 
-    // let mut followers = HashSet::new();
-    let followers_cursor = user::followers_ids(config.user_id, &config.token, &handle);
+    let mut followers = HashSet::new();
+    let followers_cursor =
+        user::followers_ids(config.user_id, &config.token, &handle).with_page_size(5000);
     let mut done = false;
     while !done {
-        let follow_resp = followers_cursor.call().wait();
+        let follow_resp = core.run(followers_cursor.call());
         match follow_resp {
-            Ok(resp) => {},
-            Err(err) => println!("{:?}", err),
+            Ok(resp) => for id in resp.response.ids {
+                followers.insert(id);
+            },
+            Err(err) => match err {
+                Error::RateLimit(epoch) => {
+                    println!("We got a rate limit response! We're sleeping until {:?} and then retrying", epoch);
+                    println!("Here are the friends we collected so far: {:?}", friends);
+                    println!("Here are the followers we collected so far: {:?}", followers);
+//                    let now = time::Instant::now();
+//                    let epoch_time = NaiveDateTime::from_timestamp(epoch.into(), 0);
+//                    // let sleepy_time = now.duration_until(epoch_time);
+//                    let sleepy_time = epoch_time.duration_since(now);
+                    let fifteen_minutes = time::Duration::from_secs(60 * 15);
+                    thread::sleep(fifteen_minutes);
+                },
+                err => println!("{:?}", err),
+            },
         }
     }
 //    core.run(user::followers_ids(config.user_id, &config.token, &handle)
