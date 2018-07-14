@@ -60,34 +60,36 @@ fn main() {
         match follow_resp {
             Ok(resp) => for id in resp.response.ids {
                 followers.insert(id);
+                if (followers_cursor.next_cursor == 0) {
+                    done = true;
+                }
             },
             Err(err) => match err {
                 Error::RateLimit(epoch) => {
                     println!("We got a rate limit response! We're sleeping until {:?} and then retrying", epoch);
                     println!("Here are the friends we collected so far: {:?}", friends);
                     println!("Here are the followers we collected so far: {:?}", followers);
-//                    let now = time::Instant::now();
-//                    let epoch_time = NaiveDateTime::from_timestamp(epoch.into(), 0);
-//                    // let sleepy_time = now.duration_until(epoch_time);
-//                    let sleepy_time = epoch_time.duration_since(now);
                     let fifteen_minutes = time::Duration::from_secs(60 * 15);
                     thread::sleep(fifteen_minutes);
                 },
-                err => println!("{:?}", err),
+                err => {
+                    println!("{:?}", err);
+                    done = true;
+                },
             },
         }
     }
-//    core.run(user::followers_ids(config.user_id, &config.token, &handle)
-//        .map(|r| r.response)
-//        .for_each(|id| { followers.insert(id); Ok(()) })).unwrap();
-//
-//    let reciprocals = friends.intersection(&followers).cloned().collect::<Vec<_>>();
-//
-//    println!("{} accounts that you follow follow you back.", reciprocals.len());
-//
-//    for user in core.run(user::lookup(&reciprocals, &config.token, &handle)).unwrap() {
-//        println!("{} (@{})", user.name, user.screen_name);
-//    }
+    core.run(user::followers_ids(config.user_id, &config.token, &handle)
+        .map(|r| r.response)
+        .for_each(|id| { followers.insert(id); Ok(()) })).unwrap();
+
+    let reciprocals = friends.intersection(&followers).cloned().collect::<Vec<_>>();
+
+    println!("{} accounts that you follow follow you back.", reciprocals.len());
+
+    for user in core.run(user::lookup(&reciprocals, &config.token, &handle)).unwrap() {
+        println!("{} (@{})", user.name, user.screen_name);
+    }
     // let mut status = core.run(egg_mode::tweet::show(tweet_id, &config.token, &handle)).unwrap();
     // common::print_tweet(&status);
     // let tweet_id = 766678057788829697;
