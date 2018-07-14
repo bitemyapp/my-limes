@@ -48,8 +48,6 @@ pub fn config_help(config_path: &std::path::PathBuf) {
 
 impl Config {
     pub fn load(core: &mut Core) -> Self {
-//        let consumer_key = env::var("TWOOK_CONSUMER_KEY").unwrap();
-//        let consumer_secret = env::var("TWOOK_CONSUMER_SECRET").unwrap();
         let xdg_dirs = xdg::BaseDirectories::with_prefix("limes").unwrap();
         let config_path = xdg_dirs
                             .place_config_file("limes.cfg")

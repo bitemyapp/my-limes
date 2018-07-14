@@ -9,10 +9,14 @@ extern crate serde_derive;
 
 mod common;
 
+use common::futures::Stream;
 use chrono::prelude::*;
 use common::tokio_core::reactor;
+use egg_mode::cursor;
+use egg_mode::user;
 use egg_mode::tweet::Tweet;
 use dotenv::dotenv;
+use std::collections::HashSet;
 use std::env;
 use std::{thread, time};
 
@@ -23,15 +27,49 @@ fn main() {
     let handle = core.handle();
 
     let user_id = config.user_id;
-    let mut idk =
+    let idk =
         core.run(
             egg_mode::user::relation(
-                "bitemyapp",
+                &user_id,
                 "symbolic_undead",
                 &config.token,
                 &handle)
         ).unwrap().response;
     println!("{:?}", idk);
+//    for friend in core.run(user::friends_of(&user_id, &config.token, &handle)).unwrap() {
+//       println!("{:?}", friend);
+//    }
+//    core.run(user::friends_of(&user_id, &config.token, &handle))
+//        .map(|r| r.response)
+//        .for_each(|friend| { println!("{:?}", friend); Ok(())}).unwrap();
+
+    println!("");
+    let mut friends = HashSet::new();
+    core.run(user::friends_ids(config.user_id, &config.token, &handle)
+        .map(|r| r.response)
+        .for_each(|id| { friends.insert(id); Ok(()) })).unwrap();
+
+    // let mut followers = HashSet::new();
+    let followers_cursor = user::followers_ids(config.user_id, &config.token, &handle);
+    let mut done = false;
+    while !done {
+        let follow_resp = followers_cursor.call().wait();
+        match follow_resp {
+            Ok(resp) => {},
+            Err(err) => println!("{:?}", err),
+        }
+    }
+//    core.run(user::followers_ids(config.user_id, &config.token, &handle)
+//        .map(|r| r.response)
+//        .for_each(|id| { followers.insert(id); Ok(()) })).unwrap();
+//
+//    let reciprocals = friends.intersection(&followers).cloned().collect::<Vec<_>>();
+//
+//    println!("{} accounts that you follow follow you back.", reciprocals.len());
+//
+//    for user in core.run(user::lookup(&reciprocals, &config.token, &handle)).unwrap() {
+//        println!("{} (@{})", user.name, user.screen_name);
+//    }
     // let mut status = core.run(egg_mode::tweet::show(tweet_id, &config.token, &handle)).unwrap();
     // common::print_tweet(&status);
     // let tweet_id = 766678057788829697;
