@@ -39,7 +39,7 @@ pub fn config_help(config_path: &std::path::PathBuf) {
     println!("And make your own app with its own consumer key and consumer secret.");
     println!("Once you have, put the values into a toml file at the aforementioned");
     println!("location in the following format:");
-    let toml_str = r#"
+    let toml_str: &str = r#"
         consumer_key = "my consumer key"
         consumer_secret = "my consumer secret"
     "#;
@@ -76,7 +76,7 @@ impl Config {
         let twitter_settings = xdg_dirs
                                 .place_config_file("twitter.settings")
                                 .expect("Cannot create Twitter settings file in config directory");
-        if let Ok(mut f) = std::fs::File::open(twitter_settings) {
+        if let Ok(mut f) = std::fs::File::open(&twitter_settings) {
             f.read_to_string(&mut config).unwrap();
 
             let mut iter = config.split('\n');
@@ -93,7 +93,7 @@ impl Config {
             if let Err(err) = core.run(egg_mode::verify_tokens(&token, &handle)) {
                 println!("We've hit an error using your old tokens: {:?}", err);
                 println!("We'll have to reauthenticate before continuing.");
-                std::fs::remove_file("twitter_settings").unwrap();
+                std::fs::remove_file(&twitter_settings).unwrap();
             }
             else {
                 println!("Welcome back, {}!", username);
@@ -128,13 +128,13 @@ impl Config {
                 _ => unreachable!(),
             }
 
-            let mut f = std::fs::File::create("twitter_settings").unwrap();
+            let mut f = std::fs::File::create(&twitter_settings).unwrap();
             f.write_all(config.as_bytes()).unwrap();
 
             println!("Welcome, {}, let's get this show on the road!", username);
         }
 
-        if std::fs::metadata("twitter_settings").is_ok() {
+        if std::fs::metadata(&twitter_settings).is_ok() {
             Config {
                 token: token,
                 user_id: user_id,
